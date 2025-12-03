@@ -95,12 +95,15 @@ class NimAI():
         best_future = self.best_future_reward(new_state)
         self.update_q_value(old_state, action, old, reward, best_future)
 
+    def get_q_key(self, state, action):
+        return (tuple(state), action)
+
     def get_q_value(self, state, action):
         """
         Return the Q-value for the state `state` and the action `action`.
         If no Q-value exists yet in `self.q`, return 0.
         """
-        key = (tuple(state), action)
+        key = self.get_q_key(state, action)
         return self.q.get(key, 0)
 
     def update_q_value(self, state, action, old_q, reward, future_rewards):
@@ -119,7 +122,7 @@ class NimAI():
         is the sum of the current reward and estimated future rewards.
         """
         new_value_estimate = reward + future_rewards
-        key = (tuple(state), action)
+        key = self.get_q_key(state, action)
         self.q[key] = old_q + self.alpha * (new_value_estimate - old_q)
 
     def best_future_reward(self, state):
@@ -133,7 +136,7 @@ class NimAI():
         `state`, return 0.
         """
         actions = list(Nim.available_actions(state))
-        q_values = (self.get_q_value(state, action) for action in actions)
+        q_values = [self.get_q_value(state, action) for action in actions]
         return max(q_values, default=0)
     
     def choose_action(self, state, epsilon=True):
@@ -155,14 +158,50 @@ class NimAI():
         if epsilon == True and random.random() <= self.epsilon:
             return random.choice(actions)
         else:
-            return max(
-                actions,
-                key=lambda action: self.get_q_value(state, action)
-            )
+            sort_key = lambda action: self.get_q_value(state, action)
+            return max(actions, key=sort_key)
 
 def train(n):
     """
     Train an AI by playing `n` games against itself.
+    """
+
+    """
+    last = {
+        0: {"state": None, "action": None},
+        1: {"state": None, "action": None}
+    }
+    game = Nim(initial=[1, 2])
+    ai = NimAI(0.5, 0.5)
+
+    state = game.piles.copy()
+    moves = Nim.available_actions(state)
+    action = (1, 2)
+    last[game.player]["state"] = state
+    last[game.player]["action"] = action
+    game.move(action)
+
+    state = game.piles.copy()
+    moves = Nim.available_actions(state)
+    print("now state is ", state)
+    print("now moves is ", moves)
+    action = (0, 1)
+    game.move(action)
+
+    new_state = game.piles.copy()
+    print("winner = ", game.winner)
+
+    ai.update(state, action, new_state, -1)
+    ai.update(
+        last[game.player]["state"],
+        last[game.player]["action"],
+        new_state,
+        1
+    )
+
+    print("q = ", ai.q)
+
+    return
     """
 
     player = NimAI()
@@ -192,7 +231,7 @@ def train(n):
             # Make move
             game.move(action)
             new_state = game.piles.copy()
-
+            
             # When game is over, update Q values with rewards
             if game.winner is not None:
                 player.update(state, action, new_state, -1)
